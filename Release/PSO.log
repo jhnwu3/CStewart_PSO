@@ -1,0 +1,25 @@
+﻿  PSO.cpp
+  Unknown compiler version - please run the configure tests and report the results
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(63,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(69,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(152,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(164,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(247,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(259,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(608,24): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(609,36): warning C4244: 'argument': conversion from '_Ty' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=double
+          ]
+          and
+          [
+              _Ty=int
+          ]
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(854,14): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+  Generating code
+  1 of 5260 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    72 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  PSO.vcxproj -> C:\Users\Will\source\repos\PSO\Release\PSO.exe

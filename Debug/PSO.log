@@ -1,0 +1,20 @@
+﻿  PSO.cpp
+  Unknown compiler version - please run the configure tests and report the results
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(63,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(69,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(151,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(163,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(246,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(258,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(597,24): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(598,36): warning C4244: 'argument': conversion from '_Ty' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=double
+          ]
+          and
+          [
+              _Ty=int
+          ]
+C:\Users\Will\source\repos\PSO\PSO\PSO.cpp(833,14): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+  PSO.vcxproj -> C:\Users\Will\source\repos\PSO\Debug\PSO.exe
