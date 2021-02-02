@@ -60,13 +60,13 @@ int main() {
 
 	vector<double> truk; // make a copy of a vector/ array/list 
 
-	for (int i = 0; i < k.size(); i++) {
+	for (unsigned int i = 0; i < k.size(); i++) {
 		truk.push_back(k.at(i));
 	}
 
 	// print truk values to a .par file w/ 5 columns? 
 	ofstream truk_file("truk.par");
-	for (int i = 0; i < truk.size(); i++) {
+	for (unsigned int i = 0; i < truk.size(); i++) {
 		truk_file << " " << truk.at(i);
 	}
 	truk_file.close();
@@ -123,6 +123,12 @@ int main() {
 	MatrixXd Y_t_obs(N, 3);
 	MatrixXd Y_t(N, 3);
 	VectorXd pmpV(3);
+
+	MatrixXd GBMAT;
+	MatrixXd w_mat(9, 9);
+
+	VectorXd gbest(Npars), best_sofar(Npars);
+
 	/* IMPORTANT THAT YOU INSTANTIATE THE RANDOM GENERATOR LIKE THIS!*/
 	std::random_device                  rand_dev;
 	std::mt19937                        generator(rand_dev());
@@ -137,35 +143,35 @@ int main() {
 
 		if (bsi == 0 || q == 1) {
 			/* Simulate Y(t) and X(0) */
-			vector<double> x; //note the data sample x is a list of 10000 RV from normal dist
-			vector<double> pa_x;
+			VectorXd x(N); //note the data sample x is a list of 10000 RV from normal dist
+			VectorXd pa_x(N);
 			
 			std::normal_distribution<double> xNorm(mu_x, sigma_x);
 
 			for (int i = 0; i < N; i++) {
-				x.push_back(xNorm(generator));
-				pa_x.push_back(exp(x.at(i)));
+				x(i) = (xNorm(generator));
+				pa_x(i) = (exp(x(i)));
 			}
 			
-			vector<double> y;
-			vector<double> pa_y;
+			VectorXd y(N);
+			VectorXd pa_y(N);
 			for (int i = 0; i < x.size(); i++) {
-				std::normal_distribution<double> yNorm(mu_y + sigma_y * rho_xy * (x.at(i) - mu_x) / sigma_x, sqrt(cvar_ygx));
-				y.push_back(yNorm(generator));
-				pa_y.push_back(exp(y.at(i)));
+				std::normal_distribution<double> yNorm(mu_y + sigma_y * rho_xy * (x(i) - mu_x) / sigma_x, sqrt(cvar_ygx));
+				y(i) = (yNorm(generator));
+				pa_y(i) = (exp(y(i)));
 			}
 
-			vector<double> z; // z big questions about how to get the data values for it. It takes in a far bigger value???
-			vector<double> pa_z; 
+			VectorXd z(N); // z big questions about how to get the data values for it. It takes in a far bigger value???
+			VectorXd pa_z(N); 
 			
 
 			/* matrix math for the z random vals. */
 			MatrixXd rbind(2, N); // first calculate a 2xN rbind matrix
 			for (int i = 0; i < x.size(); i++) {
-				rbind(0, i) = x.at(i) - mu_x;
-				rbind(1, i) = y.at(i) - mu_y;
+				rbind(0, i) = x(i) - mu_x;
+				rbind(1, i) = y(i) - mu_y;
 			}
-			MatrixXd zMean(2, N); // calculate the vector of means
+			MatrixXd zMean(1, N); // calculate the vector of means
 			zMean = sigma_12 * sigma_22.inverse() * rbind;
 			for (int i = 0; i < zMean.size(); i++) {
 				zMean(0, i) = zMean(0, i) + mu_z;
@@ -173,17 +179,17 @@ int main() {
 			// finally actually calculate z and pa_z vectors
 			for (int i = 0; i < zMean.size(); i++) {
 				std::normal_distribution<double> zNorm(zMean(0,i), sqrt(cvar_zgxy));
-				z.push_back(zNorm(generator));
-				pa_z.push_back(exp(z.at(i)));
+				z(i) = (zNorm(generator));
+				pa_z(i) = (exp(z(i)));
 			}
 
 			/* Create Y.0 */
 			MatrixXd Y_0(N, 3);
 			for (int i = 0; i < N; i++) {
 				// fill it up from vectors
-				Y_0(i, 0) = pa_x.at(i);
-				Y_0(i, 1) = pa_y.at(i);
-				Y_0(i, 2) = pa_z.at(i);
+				Y_0(i, 0) = pa_x(i);
+				Y_0(i, 1) = pa_y(i);
+				Y_0(i, 2) = pa_z(i);
 			}
 			
 			Y_t = (EMT * Y_0.transpose()).transpose();
@@ -201,12 +207,13 @@ int main() {
 			/* means */
 			
 			VectorXd ompV = Y_t.colwise().mean();
-		//	cout << ompV;
+		
 			omp_1 = ompV(0);
 			omp_2 = ompV(1);
 			omp_3 = ompV(2);
 
-			/* variances - actually have to manually calculate it, no easy library  */
+			cout << "omp:" << ompV << endl;
+			/* variances - actually have to manually calculate it, no easy library  
 			for (int n = 0; n < N; n++)
 			{
 				ovp_1 += (Y_t(n,0) - omp_1) * (Y_t(n, 0) - omp_1);
@@ -215,7 +222,15 @@ int main() {
 			}
 			ovp_1 /= N;
 			ovp_2 /= N;
-			ovp_3 /= N;
+			ovp_3 /= N;*/
+
+			
+			ovp_1 = (Y_t.col(0).array() - Y_t.col(0).array().mean()).square().sum() / ((double)Y_t.col(0).array().size() - 1);
+			ovp_2 = (Y_t.col(1).array() - Y_t.col(1).array().mean()).square().sum() / ((double)Y_t.col(1).array().size() - 1);
+			ovp_3 = (Y_t.col(2).array() - Y_t.col(2).array().mean()).square().sum() / ((double)Y_t.col(2).array().size() - 1);
+
+			cout << "OVPs:" << endl;
+			cout << ovp_1 << "," << ovp_2 << "," << ovp_3 << endl;
 
 			/* covariances - also requires manual calculation*/
 			double sum12 = 0, sum13 = 0, sum23 = 0;
@@ -230,37 +245,32 @@ int main() {
 			ocov_12 = sum12 / N_SUBTRACT_ONE;
 			ocov_13 = sum13 / N_SUBTRACT_ONE;
 			ocov_23 = sum23 / N_SUBTRACT_ONE;
-
-
-			/* Simulate X(0) ~ F(theta)*/
-			 x.clear(); //note the data sample x is a list of 10000 RV from normal dist
-			 pa_x.clear();
 			
+			cout << "OCOVs:" << endl;
+			cout << ocov_12 << "," << ocov_13 << "," << ocov_23 << endl;
+
+
+
 
 			for (int i = 0; i < N; i++) {
-				x.push_back(xNorm(generator));
-				pa_x.push_back(exp(x.at(i)));
+				x(i) = (xNorm(generator));
+				pa_x(i) = (exp(x(i)));
 			}
 
-		    y.clear();
-			pa_y.clear();
+		    
 			for (int i = 0; i < x.size(); i++) {
-				std::normal_distribution<double> yNorm(mu_y + sigma_y * rho_xy * (x.at(i) - mu_x) / sigma_x, sqrt(cvar_ygx));
-				y.push_back(yNorm(generator));
-				pa_y.push_back(exp(y.at(i)));
+				std::normal_distribution<double> yNorm(mu_y + sigma_y * rho_xy * (x(i) - mu_x) / sigma_x, sqrt(cvar_ygx));
+				y(i) = (yNorm(generator));
+				pa_y(i) = (exp(y(i)));
 			}
 
-			 z.clear(); // z big questions about how to get the data values for it. It takes in a far bigger value???
-			 pa_z.clear();
-
-			 
 			/* matrix math for the z random vals. */
 			MatrixXd r1bind(2, N); // first calculate a 2xN rbind matrix
 			for (int i = 0; i < x.size(); i++) {
-				r1bind(0, i) = x.at(i) - mu_x;
-				r1bind(1, i) = y.at(i) - mu_y;
+				r1bind(0, i) = x(i) - mu_x;
+				r1bind(1, i) = y(i) - mu_y;
 			}
-			MatrixXd z1Mean(2, N); // calculate the vector of means
+			MatrixXd z1Mean(1, N); // calculate the vector of means
 			z1Mean = sigma_12 * sigma_22.inverse() * r1bind;
 			for (int i = 0; i < z1Mean.size(); i++) {
 				z1Mean(0, i) = z1Mean(0, i) + mu_z;
@@ -268,16 +278,16 @@ int main() {
 			// finally actually calculate z and pa_z vectors
 			for (int i = 0; i < z1Mean.size(); i++) {
 				std::normal_distribution<double> zNorm(z1Mean(0, i), sqrt(cvar_zgxy));
-				z.push_back(zNorm(generator));
-				pa_z.push_back(exp(z.at(i)));
+				z(i) = (zNorm(generator));
+				pa_z(i) = (exp(z(i)));
 			}
 
 			
 			for (int i = 0; i < N; i++) {
 				// fill it up from vectors
-				X_0(i, 0) = pa_x.at(i);
-				X_0(i, 1) = pa_y.at(i);
-				X_0(i, 2) = pa_z.at(i);
+				X_0(i, 0) = pa_x(i);
+				X_0(i, 1) = pa_y(i);
+				X_0(i, 2) = pa_z(i);
 			}
 			
 			if (bsi == 1 && q == 1) {// save the simulated CYTOF data time 0
@@ -285,6 +295,7 @@ int main() {
 			}
 
 		}
+		
 		if (bsi == 1 && q > 1) {
 
 			/* create shuffled indices based on uniform rand dist */
@@ -317,15 +328,12 @@ int main() {
 			ovp_2 = 0;
 			ovp_3 = 0;
 			/* variances - actually have to manually calculate it, no easy library  */
-			for (int n = 0; n < N; n++)
-			{
-				ovp_1 += (Y_t(n, 0) - omp_1) * (Y_t(n, 0) - omp_1);
-				ovp_2 += (Y_t(n, 1) - omp_2) * (Y_t(n, 1) - omp_2);
-				ovp_3 += (Y_t(n, 2) - omp_3) * (Y_t(n, 2) - omp_3);
-			}
-			ovp_1 /= N;
-			ovp_2 /= N;
-			ovp_3 /= N;
+		
+			ovp_1 = (Y_t.col(0).array() - Y_t.col(0).array().mean()).square().sum() / ((double)Y_t.col(0).array().size() - 1);
+			ovp_2 = (Y_t.col(1).array() - Y_t.col(1).array().mean()).square().sum() / ((double)Y_t.col(1).array().size() - 1);
+			ovp_3 = (Y_t.col(2).array() - Y_t.col(2).array().mean()).square().sum() / ((double)Y_t.col(2).array().size() - 1);
+
+	
 
 			/* covariances - also requires manual calculation*/
 			double sum12 = 0, sum13 = 0, sum23 = 0;
@@ -340,14 +348,14 @@ int main() {
 			ocov_12 = sum12 / N_SUBTRACT_ONE;
 			ocov_13 = sum13 / N_SUBTRACT_ONE;
 			ocov_23 = sum23 / N_SUBTRACT_ONE;
+
 		}
-	
-		/* Initialize vals for layered PSO */
+		
+		// Initialize variabless for layered PSO
 		int Nparts = Nparts_1;
 		int Nsteps = Nsteps_1;
 
-		MatrixXd GBMAT;
-		MatrixXd w_mat(9,9); 
+		
 		VectorXd vectorOfOnes(9);
 		
 		
@@ -356,13 +364,11 @@ int main() {
 		}
 		
 	
-		w_mat = vectorOfOnes.asDiagonal();
+		w_mat = vectorOfOnes.asDiagonal(); //initialize weight matrix
 		
 		
-		VectorXd seedk(Npars);
-		
+		VectorXd seedk(Npars); //initialize global best
 		for (int i = 0; i < Npars; i++) { seedk(i) = unifDist(generator); }
-		
 		for (int i = 0; i < Npars; i++) { k.at(i) = seedk(i); }
 
 		
@@ -371,7 +377,6 @@ int main() {
 			k.at(1), -k.at(1) - k.at(4), k.at(4),
 			k.at(3), k.at(0), -k.at(0) - k.at(3);
 
-		
 		MatrixXd HMT(3, 3);
 		HMT = t * HM.transpose();
 		
@@ -381,27 +386,22 @@ int main() {
 		MatrixXd Q(N,3);
 		Q = (EHMT * X_0.transpose()).transpose();
 		
-		/* re-calc new omp, ovp, and ocovs, which should be the same???*/
+		//re-calc new omp, ovp, and ocovs, which should be the same???
 	    pmpV = Q.colwise().mean();
 
 		pmp_1 = pmpV(0);
 		pmp_2 = pmpV(1);
 		pmp_3 = pmpV(2);
+	
+		cout << "PMPS initial:" << pmpV << endl;
+		// variances - actually have to manually calculate it, no easy library
+		pvp_1 = (Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double) Q.col(0).array().size() - 1);
+		pvp_2 = (Q.col(1).array() - Q.col(1).array().mean()).square().sum() / ((double) Q.col(1).array().size() - 1);
+		pvp_3 = (Q.col(2).array() - Q.col(2).array().mean()).square().sum() / ((double) Q.col(2).array().size() - 1);
+		cout << "PVPs:" << endl;
+		cout << pvp_1 << "," << pvp_2 << "," << pvp_3 << endl;
 
-		pvp_1 = 0;
-		pvp_2 = 0;
-		pvp_3 = 0;
-		/* variances - actually have to manually calculate it, no easy library*/ 
-		for (int n = 0; n < N; n++)
-		{
-			pvp_1 += (Q(n, 0) - pmp_1) * (Q(n, 0) - pmp_1);
-			pvp_2 += (Q(n, 1) - pmp_2) * (Q(n, 1) - pmp_2);
-			pvp_3 += (Q(n, 2) - pmp_3) * (Q(n, 2) - pmp_3);
-		}
-		pvp_1 /= Q.rows();
-		pvp_2 /= Q.rows();
-		pvp_3 /= Q.rows();
-		/* covariances - also requires manual calculation */
+		// covariances - also requires manual calculation 
 		double sum12 = 0, sum13 = 0, sum23 = 0;
 		
 		for (int n = 0; n < Q.rows(); n++)
@@ -411,11 +411,14 @@ int main() {
 			sum23 += (Q(n, 1) - pmp_2) * (Q(n, 2) - pmp_3);
 
 		}
-		int N_SUBTRACT_ONE = Q.rows() - 1;
+		double N_SUBTRACT_ONE = Q.rows() - 1.0;
 		
 		pcov_12 = sum12 / N_SUBTRACT_ONE;
 		pcov_13 = sum13 / N_SUBTRACT_ONE;
 		pcov_23 = sum23 / N_SUBTRACT_ONE;
+
+		cout << "PCOVs:" << endl;
+		cout << pcov_12 << "," << pcov_13 << "," << pcov_23 << endl;
 
 		double term_1 = pmp_1 - omp_1, 
 			term_2 = pmp_2 - omp_2, 
@@ -436,9 +439,9 @@ int main() {
 		double cost_seedk;
 		cost_seedk = term_vec.transpose() * w_mat * (term_vec.transpose()).transpose();
 		
-		/* instantiate values */
+		// instantiate values 
 
-		VectorXd gbest(Npars), best_sofar(Npars);
+		
 		gbest = seedk;
 		best_sofar = seedk;
 
@@ -449,6 +452,7 @@ int main() {
 		
 		VectorXd cbind(gbest.size() + 1);
 		cbind << gbest, cost_gbest;
+		cout << "cbind:" << endl << cbind << endl;
 		GBMAT.row(GBMAT.rows() - 1) = cbind;
 	
 		
@@ -478,10 +482,12 @@ int main() {
 				gbest = best_sofar;
 				cost_gbest = cost_sofar;
 
-				/* reset POSMAT? */
-				POSMAT.conservativeResize(Nparts, Npars);
-				POSMAT = MatrixXd::Zero(Nparts, Npars);
+				// reset POSMAT? 
+				POSMAT.resize(Nparts, Npars);
+				POSMAT.setZero();
 
+				
+				cout << "line 490!" << endl;
 				
 				for (int init = 0; init < Nparts; init++) {
 					for (int edim = 0; edim < Npars; edim++) {
@@ -491,10 +497,16 @@ int main() {
 							wasflipped = 1;
 						}
 						double myc = (1 - tmean) / tmean;
+						
 						double alpha = myc / ((1 + myc) * (1 + myc) * (1 + myc)*nearby*nearby);
 						double beta = myc * alpha;
 
-						/* sample from beta dist - this can be quite inefficient and taxing, there is another way with a gamma dist (THAT NEEDS TO BE REINVESTIGATED), but works so far. */
+						if (alpha < 0.01 || beta < 0.01) {
+							cout << "alpha:" << alpha << endl;
+							cout << "beta:" << beta << endl;
+						}
+
+						// sample from beta dist - this can be quite inefficient and taxing, there is another way with a gamma dist (THAT NEEDS TO BE REINVESTIGATED), but works so far. 
 						beta_distribution<double> betaDist(alpha, beta);
 						double randFromUnif = unifDist(generator);
 						double myg = quantile(betaDist, randFromUnif);
@@ -511,7 +523,7 @@ int main() {
 				
 			
 			cout << "at line 505" << endl;
-			/* initialize PBMAT */
+			// initialize PBMAT 
 			MatrixXd PBMAT = POSMAT; // keep track of ea.particle's best, and it's corresponding cost
 			
 			PBMAT.conservativeResize(POSMAT.rows(), POSMAT.cols() + 1);
@@ -541,26 +553,14 @@ int main() {
 				pvp_1 = 0;
 				pvp_2 = 0;
 				pvp_3 = 0;
-				/* variances - below is manual calculation  */
-				for (int n = 0; n < Q.rows(); n++)
-				{
-					pvp_1 += (Q(n, 0) - pmp_1) * (Q(n, 0) - pmp_1);
-					pvp_2 += (Q(n, 1) - pmp_2) * (Q(n, 1) - pmp_2);
-					pvp_3 += (Q(n, 2) - pmp_3) * (Q(n, 2) - pmp_3);
-				} 
-				/*pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double) Q.col(0).array().size() - 1));
+
+
+				// variances - below is manual calculation  
+				pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double) Q.col(0).array().size() - 1));
 				pvp_2 = sqrt((Q.col(1).array() - Q.col(1).array().mean()).square().sum() / ((double)Q.col(1).array().size() - 1));
 				pvp_3 = sqrt((Q.col(2).array() - Q.col(2).array().mean()).square().sum() / ((double)Q.col(2).array().size() - 1));
 				
-				pvp_1 = pvp_1 * pvp_1;
-				pvp_2 = pvp_2 * pvp_2;
-				pvp_3 = pvp_3 * pvp_3;*/
-
-				pvp_1 /= Q.rows();
-				pvp_2 /= Q.rows();
-				pvp_3 /= Q.rows();
-			
-				/* covariances - also requires manual calculation */
+				// covariances - also requires manual calculation 
 				double sum12 = 0, sum13 = 0, sum23 = 0;
 
 				for (int n = 0; n < Q.rows(); n++)
@@ -593,21 +593,21 @@ int main() {
 				PBMAT(h, Npars) = term_vec.transpose() * w_mat * (term_vec.transpose()).transpose();
 			}
 
-
-			/* ALL SWARMS BEGIN TO MOVE HERE */
+			
+			// ALL SWARMS BEGIN TO MOVE HERE 
 			double sfi = sfe;
 			double sfc = sfp;
 			double sfs = sfg;
 			cout << " at line 581" << endl;
-			cout << Q.rows() << endl;
 
 			for (int iii = 0; iii < Nsteps; iii++) { //REMEMBER IF THERE IS ITERATION WITH iii MAKE SURE TO SUBTRACT ONE
+
+				
 				if (pso == (Biter + 1)) {
 					vector<int> chkpts;
 					
-					for (int i = 0; i < wmatup.size(); i++) {	
+					for (unsigned int i = 0; i < wmatup.size(); i++) {	
 						chkpts.push_back(wmatup.at(i)* Nsteps);
-						cout << "chkpts: " << chkpts.at(i) << endl;
 					}
 					
 					if (iii == chkpts.at(0) || iii == chkpts.at(1) || iii == chkpts.at(2) || iii == chkpts.at(3)) {
@@ -672,7 +672,7 @@ int main() {
 						w_mat = w_mat.inverse();
 						if (useDiag == 1) { w_mat = w_mat.diagonal().diagonal(); }
 
-						/* CALCULATE MEANS, VARIANCES, AND COVARIANCES*/
+						// CALCULATE MEANS, VARIANCES, AND COVARIANCES
 						pmpV = Q.colwise().mean();
 
 						pmp_1 = pmpV(0);
@@ -682,17 +682,12 @@ int main() {
 						pvp_1 = 0;
 						pvp_2 = 0;
 						pvp_3 = 0;
-						/* variances - manually calculate it, no easy library */
-						for (int n = 0; n < N; n++)
-						{
-							pvp_1 += (Q(n, 0) - pmp_1) * (Q(n, 0) - pmp_1);
-							pvp_2 += (Q(n, 1) - pmp_2) * (Q(n, 1) - pmp_2);
-							pvp_3 += (Q(n, 2) - pmp_3) * (Q(n, 2) - pmp_3);
-						}
-						pvp_1 /= N;
-						pvp_2 /= N;
-						pvp_3 /= N;
-						/* covariances - manual calculation */
+						// variances - manually calculate it, no easy library 
+						pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double)Q.col(0).array().size() - 1));
+						pvp_2 = sqrt((Q.col(1).array() - Q.col(1).array().mean()).square().sum() / ((double)Q.col(1).array().size() - 1));
+						pvp_3 = sqrt((Q.col(2).array() - Q.col(2).array().mean()).square().sum() / ((double)Q.col(2).array().size() - 1));
+
+						// covariances - manual calculation 
 						double sum12 = 0, sum13 = 0, sum23 = 0;
 
 						for (int n = 0; n < Q.rows(); n++)
@@ -718,18 +713,21 @@ int main() {
 							term_8 = pcov_13 - ocov_13,
 							term_9 = pcov_23 - ocov_23;
 						// note to self: I'm using vectorXd from now on b/c it plays way better than the vectors built into C++ unless ofc there are strings that we need to input.
-
+						
 						all_terms << term_1, term_2, term_3, term_4, term_5, term_6, term_7, term_8, term_9;
 						term_vec = all_terms;
-						cout << "line 703" << endl;
+						
 						cost_gbest = term_vec.transpose() * w_mat * term_vec.transpose().transpose();
+						
 						GBMAT.conservativeResize(GBMAT.rows() + 1, GBMAT.cols());
-						cbind << gbest, cost_gbest;
-						GBMAT.row(GBMAT.rows() - 1) = cbind;
-
-						POSMAT.conservativeResize(Nparts,Npars); //reset to 0???
-						POSMAT = MatrixXd::Zero(Nparts, Npars);
-
+						VectorXd cbind1(GBMAT.cols());
+						cbind1 << gbest, cost_gbest;
+						GBMAT.row(GBMAT.rows() - 1) = cbind1;
+						
+						POSMAT.resize(Nparts,Npars); //reset to 0???
+						POSMAT.setZero();
+						cout << "line 728" << endl;
+						
 						for (int init = 0; init < Nparts; init++) {
 							for (int edim = 0; edim < Npars; edim++) {
 								double tmean = gbest(edim);
@@ -741,7 +739,12 @@ int main() {
 								double alpha = myc / ((1 + myc) * (1 + myc) * (1 + myc) * nearby * nearby);
 								double beta = myc * alpha;
 
-								/* sample from beta dist - this can be quite inefficient and taxing, there is another way with a gamma dist (THAT NEEDS TO BE REINVESTIGATED), but works so far.*/ 
+								if (alpha < 0.01 || beta < 0.01) {
+									cout << "alpha:" << alpha << endl;
+									cout << "beta:" << beta << endl;
+								}
+
+								// sample from beta dist - this can be quite inefficient and taxing, there is another way with a gamma dist (THAT NEEDS TO BE REINVESTIGATED), but works so far.
 								beta_distribution<double> betaDist(alpha, beta);
 								double randFromUnif = unifDist(generator);
 								double myg = quantile(betaDist, randFromUnif);
@@ -752,7 +755,9 @@ int main() {
 								POSMAT(init, edim) = myg;
 							}
 						}
+						
 
+						
 						cout << "line 734" << endl;
 						MatrixXd cbindMat(POSMAT.rows(), POSMAT.cols() + 1); // keep track of each particle's best and it's corresponding cost
 						cbindMat << POSMAT, VectorXd::Zero(POSMAT.rows());
@@ -769,7 +774,7 @@ int main() {
 							Q = (EHMT * X_0.transpose()).transpose();
 
 
-							/* CALCULATE MEANS, VARIANCES, AND COVARIANCES*/
+							// CALCULATE MEANS, VARIANCES, AND COVARIANCES
 							pmpV = Q.colwise().mean();
 
 							pmp_1 = pmpV(0);
@@ -777,20 +782,11 @@ int main() {
 							pmp_3 = pmpV(2);
 
 
-							pvp_1 = 0;
-							pvp_2 = 0;
-							pvp_3 = 0;
-							/* variances - manually calculate it, no easy library */
-							for (int n = 0; n < N; n++)
-							{
-								pvp_1 += (Q(n, 0) - pmp_1) * (Q(n, 0) - pmp_1);
-								pvp_2 += (Q(n, 1) - pmp_2) * (Q(n, 1) - pmp_2);
-								pvp_3 += (Q(n, 2) - pmp_3) * (Q(n, 2) - pmp_3);
-							}
-							pvp_1 /= N;
-							pvp_2 /= N;
-							pvp_3 /= N;
-							/* covariances - manual calculation */
+							// variances - manually calculate it, no easy library 
+							pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double)Q.col(0).array().size() - 1));
+							pvp_2 = sqrt((Q.col(1).array() - Q.col(1).array().mean()).square().sum() / ((double)Q.col(1).array().size() - 1));
+							pvp_3 = sqrt((Q.col(2).array() - Q.col(2).array().mean()).square().sum() / ((double)Q.col(2).array().size() - 1));
+							// covariances - manual calculation 
 							double sum12 = 0, sum13 = 0, sum23 = 0;
 
 							for (int n = 0; n < Q.rows(); n++)
@@ -819,12 +815,12 @@ int main() {
 
 							all_terms << term_1, term_2, term_3, term_4, term_5, term_6, term_7, term_8, term_9;
 							term_vec = all_terms;
-							PBMAT(h, Npars + 1) = term_vec.transpose() * w_mat * term_vec.transpose().transpose();
+							PBMAT(h, Npars) = term_vec.transpose() * w_mat * term_vec.transpose().transpose();
 						}
 					}
 				}
 
-				cout << "line 802" << endl;
+				//cout << "line 802" << endl;
 				for (int jjj = 0; jjj < Nparts; jjj++) {
 
 					double w1 = unifDist(generator) /sf2, w2 = unifDist(generator) / sf2, w3 = unifDist(generator) / sf2;
@@ -878,28 +874,19 @@ int main() {
 					Q = (EHMT * X_0.transpose()).transpose();
 
 
-					/* CALCULATE MEANS, VARIANCES, AND COVARIANCES*/
+					// CALCULATE MEANS, VARIANCES, AND COVARIANCES
 					pmpV = Q.colwise().mean();
 				
 					pmp_1 = pmpV(0);
 					pmp_2 = pmpV(1);
 					pmp_3 = pmpV(2);
+ 
+					// variances - below is best way to calculate column wise
+					pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double)Q.col(0).array().size() - 1));
+					pvp_2 = sqrt((Q.col(1).array() - Q.col(1).array().mean()).square().sum() / ((double)Q.col(1).array().size() - 1));
+					pvp_3 = sqrt((Q.col(2).array() - Q.col(2).array().mean()).square().sum() / ((double)Q.col(2).array().size() - 1));
 
-
-					pvp_1 = 0;
-					pvp_2 = 0;
-					pvp_3 = 0;
-					/* variances - manually calculate it, no easy library  */
-					for (int n = 0; n < N; n++)
-					{
-						pvp_1 += (Q(n, 0) - pmp_1) * (Q(n, 0) - pmp_1);
-						pvp_2 += (Q(n, 1) - pmp_2) * (Q(n, 1) - pmp_2);
-						pvp_3 += (Q(n, 2) - pmp_3) * (Q(n, 2) - pmp_3);
-					}
-					pvp_1 /= N;
-					pvp_2 /= N;
-					pvp_3 /= N;
-					/* covariances - manual calculation */
+					// covariances - manual calculation 
 					double sum12 = 0, sum13 = 0, sum23 = 0;
 
 					for (int n = 0; n < Q.rows(); n++)
@@ -955,7 +942,7 @@ int main() {
 					}
 					
 				}
-				cout << "line 927" << endl;
+				//cout << "line 927" << endl;
 				sfi = sfi - (sfe - sfg) / Nsteps; // reduce the inertial weight after each step
 				sfs = sfs + (sfe - sfg) / Nsteps; // increase social weight after each step
 
@@ -967,6 +954,7 @@ int main() {
 						neflag = 1;
 					}
 				}
+
 				if (GBMAT(lastrow, Npars) != cost_gbest) {
 					neflag = 1;
 				}
@@ -978,7 +966,7 @@ int main() {
 				}
 				
 			}
-			cout << "line 948" << endl;
+			// cout << "line 948"<<endl;
 			if (pso < (Biter + 1)) {
 				for (int init = 0; init < Npars; init++) { // best estimate of k to compute w.mat
 					k.at(init) = gbest(init);
@@ -1040,9 +1028,10 @@ int main() {
 				for (int m = 0; m < N; m++) { w_mat = w_mat + (g_mat.row(m).transpose()).transpose() * g_mat.row(m).transpose(); }
 				w_mat = w_mat / N;
 				w_mat = w_mat.inverse();
+			
 				if (useDiag == 1) { w_mat = w_mat.diagonal().diagonal(); }
 
-				/* Update cost_gbest with w_mat*/
+				// Update cost_gbest with w_mat
 
 				for (int init = 0; init < Npars; init++) { // recompute the cost for seedk using this w.mat
 					k.at(init) = gbest(init);
@@ -1057,7 +1046,7 @@ int main() {
 				Q = (EHMT * X_0.transpose()).transpose();
 
 
-				/* CALCULATE MEANS, VARIANCES, AND COVARIANCES*/
+				// CALCULATE MEANS, VARIANCES, AND COVARIANCES
 				pmpV = Q.colwise().mean();
 
 				pmp_1 = pmpV(0);
@@ -1067,7 +1056,7 @@ int main() {
 				pvp_1 = 0;
 				pvp_2 = 0;
 				pvp_3 = 0;
-				/* variances - manually calculate it, no easy library */
+				// variances - manually calculate it, no easy library 
 				for (int n = 0; n < N; n++)
 				{
 					pvp_1 += (Q(n, 0) - pmp_1) * (Q(n, 0) - pmp_1);
@@ -1077,7 +1066,7 @@ int main() {
 				pvp_1 /= N;
 				pvp_2 /= N;
 				pvp_3 /= N;
-				/* covariances - manual calculation */
+				// covariances - manual calculation 
 				double sum12 = 0, sum13 = 0, sum23 = 0;
 
 				for (int n = 0; n < Q.rows(); n++)
@@ -1122,11 +1111,11 @@ int main() {
 
 			if (bsi == 0 || q == 1) {
 				if (pso < (Biter + 1)) {
-					cout << best_sofar << cost_sofar << endl << "blindpso+cost.est" << endl << endl;
+					cout << "blindpso+cost.est:" << best_sofar << endl << cost_sofar << endl << endl;
 				}
 				if (pso == (Biter + 1)) {
-					cout << gbest << cost_gbest <<"igmme + cost.est" << endl << endl;
-					cout << w_mat.transpose() << "w.mat" << endl << endl;
+					cout << "igmme + cost.est" << gbest << cost_gbest  << endl << endl;
+					cout << "w.mat" << w_mat.transpose()  << endl << endl;
 				}
 			}
 			if (bsi == 1 && q > 1) {
@@ -1137,11 +1126,14 @@ int main() {
 					cout << gbest << cost_gbest << "wbsreps+cost.mat" << endl << endl;
 				} 
 			} 
-		}  // end loop over PSO layers 
+		}  // end loop over PSO layers */
+		
 
 	} // end loop over NIter simulations
-
-
+	
+	cout << "GBMAT: " << endl;
+	cout << GBMAT << endl;
+	cout << "CODE FINISHED RUNNING!" << endl;
 	return 0; // just to close the program at the end.
 }
 
