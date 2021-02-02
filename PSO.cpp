@@ -21,7 +21,7 @@ using namespace boost::math;
 
 
 int main() {
-
+	MatrixXd testMatrix;
 	/*---------------------- Setup ------------------------ */
 	int bsi = 1, Nterms = 9, useEqual = 0, Niter = 1, Biter = 1; 
 
@@ -177,7 +177,7 @@ int main() {
 				zMean(0, i) = zMean(0, i) + mu_z;
 			}
 			// finally actually calculate z and pa_z vectors
-			for (int i = 0; i < zMean.size(); i++) {
+			for (int i = 0; i < N; i++) {
 				std::normal_distribution<double> zNorm(zMean(0,i), sqrt(cvar_zgxy));
 				z(i) = (zNorm(generator));
 				pa_z(i) = (exp(z(i)));
@@ -214,17 +214,7 @@ int main() {
 
 			cout << "omp:" << ompV << endl;
 			/* variances - actually have to manually calculate it, no easy library  
-			for (int n = 0; n < N; n++)
-			{
-				ovp_1 += (Y_t(n,0) - omp_1) * (Y_t(n, 0) - omp_1);
-				ovp_2 += (Y_t(n, 1) - omp_2) * (Y_t(n, 1) - omp_2);
-				ovp_3 += (Y_t(n, 2) - omp_3) * (Y_t(n, 2) - omp_3);
-			}
-			ovp_1 /= N;
-			ovp_2 /= N;
-			ovp_3 /= N;*/
 
-			
 			ovp_1 = (Y_t.col(0).array() - Y_t.col(0).array().mean()).square().sum() / ((double)Y_t.col(0).array().size() - 1);
 			ovp_2 = (Y_t.col(1).array() - Y_t.col(1).array().mean()).square().sum() / ((double)Y_t.col(1).array().size() - 1);
 			ovp_3 = (Y_t.col(2).array() - Y_t.col(2).array().mean()).square().sum() / ((double)Y_t.col(2).array().size() - 1);
@@ -258,7 +248,7 @@ int main() {
 			}
 
 		    
-			for (int i = 0; i < x.size(); i++) {
+			for (int i = 0; i < N; i++) {
 				std::normal_distribution<double> yNorm(mu_y + sigma_y * rho_xy * (x(i) - mu_x) / sigma_x, sqrt(cvar_ygx));
 				y(i) = (yNorm(generator));
 				pa_y(i) = (exp(y(i)));
@@ -266,7 +256,7 @@ int main() {
 
 			/* matrix math for the z random vals. */
 			MatrixXd r1bind(2, N); // first calculate a 2xN rbind matrix
-			for (int i = 0; i < x.size(); i++) {
+			for (int i = 0; i < N; i++) {
 				r1bind(0, i) = x(i) - mu_x;
 				r1bind(1, i) = y(i) - mu_y;
 			}
@@ -276,7 +266,7 @@ int main() {
 				z1Mean(0, i) = z1Mean(0, i) + mu_z;
 			}
 			// finally actually calculate z and pa_z vectors
-			for (int i = 0; i < z1Mean.size(); i++) {
+			for (int i = 0; i < N; i++) {
 				std::normal_distribution<double> zNorm(z1Mean(0, i), sqrt(cvar_zgxy));
 				z(i) = (zNorm(generator));
 				pa_z(i) = (exp(z(i)));
@@ -324,9 +314,7 @@ int main() {
 			omp_2 = ompV(1);
 			omp_3 = ompV(2);
 
-			ovp_1 = 0;
-			ovp_2 = 0;
-			ovp_3 = 0;
+			
 			/* variances - actually have to manually calculate it, no easy library  */
 		
 			ovp_1 = (Y_t.col(0).array() - Y_t.col(0).array().mean()).square().sum() / ((double)Y_t.col(0).array().size() - 1);
@@ -355,23 +343,16 @@ int main() {
 		int Nparts = Nparts_1;
 		int Nsteps = Nsteps_1;
 
-		
-		VectorXd vectorOfOnes(9);
-		
-		
+		VectorXd vectorOfOnes(9);		
 		for (int i = 0; i < 9; i++) {
 			vectorOfOnes(i) = 1;
 		}
-		
-	
 		w_mat = vectorOfOnes.asDiagonal(); //initialize weight matrix
-		
 		
 		VectorXd seedk(Npars); //initialize global best
 		for (int i = 0; i < Npars; i++) { seedk(i) = unifDist(generator); }
 		for (int i = 0; i < Npars; i++) { k.at(i) = seedk(i); }
 
-		
 		MatrixXd HM(3, 3);
 		HM << -k.at(2), k.at(2), 0,
 			k.at(1), -k.at(1) - k.at(4), k.at(4),
@@ -440,8 +421,6 @@ int main() {
 		cost_seedk = term_vec.transpose() * w_mat * (term_vec.transpose()).transpose();
 		
 		// instantiate values 
-
-		
 		gbest = seedk;
 		best_sofar = seedk;
 
@@ -473,8 +452,8 @@ int main() {
 			
 			if (pso == Biter + 1) {
 				Nparts = Nparts_2;
-				
 				Nsteps = Nsteps_2;
+
 				GBMAT.conservativeResize(GBMAT.rows() + 1, 6);
 				cbind << best_sofar, cost_sofar;
 				GBMAT.row(GBMAT.rows() - 1) = cbind;
@@ -502,6 +481,7 @@ int main() {
 						double beta = myc * alpha;
 
 						if (alpha < 0.01 || beta < 0.01) {
+							cout << "gbest:" << gbest << endl;
 							cout << "alpha:" << alpha << endl;
 							cout << "beta:" << beta << endl;
 						}
@@ -527,8 +507,6 @@ int main() {
 			MatrixXd PBMAT = POSMAT; // keep track of ea.particle's best, and it's corresponding cost
 			
 			PBMAT.conservativeResize(POSMAT.rows(), POSMAT.cols() + 1);
-			
-		
 			for (int i = 0; i < PBMAT.rows(); i++) { PBMAT(i, PBMAT.cols() - 1) = 0; } // add the 0's on far right column
 			
 			
@@ -548,12 +526,6 @@ int main() {
 				pmp_1 = pmpV(0);
 				pmp_2 = pmpV(1);
 				pmp_3 = pmpV(2);
-
-
-				pvp_1 = 0;
-				pvp_2 = 0;
-				pvp_3 = 0;
-
 
 				// variances - below is manual calculation  
 				pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double) Q.col(0).array().size() - 1));
@@ -630,9 +602,9 @@ int main() {
 						
 						VectorXd mxt(3);
 						mxt = Q.colwise().mean();
-						cout << mxt << endl;
+				
 						VectorXd myt(3); 
-						myt = Q.colwise().mean();
+						myt = Y_t.colwise().mean();
 					
 						MatrixXd residxt(Q.rows(), Q.cols());
 						residxt.col(0) = mxt.row(0).replicate(N, 1);
@@ -667,7 +639,7 @@ int main() {
 
 						MatrixXd g_mat(N, Nterms);
 						g_mat = Adiffs;
-						for (int m = 0; m < N; m++) { w_mat = w_mat + (g_mat.row(m).transpose()).transpose() * g_mat.row(m).transpose(); }
+						for (int m = 0; m < N; m++) { w_mat = w_mat + g_mat.row(m).transpose() * g_mat.row(m); }
 						w_mat = w_mat / N;
 						w_mat = w_mat.inverse();
 						if (useDiag == 1) { w_mat = w_mat.diagonal().diagonal(); }
@@ -679,9 +651,6 @@ int main() {
 						pmp_2 = pmpV(1);
 						pmp_3 = pmpV(2);
 
-						pvp_1 = 0;
-						pvp_2 = 0;
-						pvp_3 = 0;
 						// variances - manually calculate it, no easy library 
 						pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double)Q.col(0).array().size() - 1));
 						pvp_2 = sqrt((Q.col(1).array() - Q.col(1).array().mean()).square().sum() / ((double)Q.col(1).array().size() - 1));
@@ -781,7 +750,6 @@ int main() {
 							pmp_2 = pmpV(1);
 							pmp_3 = pmpV(2);
 
-
 							// variances - manually calculate it, no easy library 
 							pvp_1 = sqrt((Q.col(0).array() - Q.col(0).array().mean()).square().sum() / ((double)Q.col(0).array().size() - 1));
 							pvp_2 = sqrt((Q.col(1).array() - Q.col(1).array().mean()).square().sum() / ((double)Q.col(1).array().size() - 1));
@@ -823,7 +791,7 @@ int main() {
 				//cout << "line 802" << endl;
 				for (int jjj = 0; jjj < Nparts; jjj++) {
 
-					double w1 = unifDist(generator) /sf2, w2 = unifDist(generator) / sf2, w3 = unifDist(generator) / sf2;
+					double w1 = sfi * unifDist(generator) /sf2, w2 = sfc*  unifDist(generator) / sf2, w3 = sfs * unifDist(generator) / sf2;
 					double sumw = w1 + w2 + w3;
 
 					w1 = w1 / sumw;
@@ -840,6 +808,7 @@ int main() {
 					shuffle(seqOneToFive.begin(), seqOneToFive.end(), generator); // shuffle indices as well as possible. 
 					int ncomp = seqOneToFive.at(0);
 					VectorXd wcomp(ncomp);
+					shuffle(seqOneToFive.begin(), seqOneToFive.end(), generator);
 					for (int i = 0; i < ncomp; i++) {
 						wcomp(i) = seqOneToFive.at(i);
 					}
@@ -851,6 +820,14 @@ int main() {
 						double pos = rpoint(px);
 						double alpha = 4 * pos;
 						double beta = 4 - alpha;
+
+						/*if (alpha < 0.01 || beta < 0.01) {
+							cout << "rpoint:" << rpoint << endl;
+							cout << "alpha:" << alpha << endl;
+							cout << "beta:" << beta << endl;
+							alpha += 0.3;
+							beta += 0.3;
+						}*/
 						beta_distribution<double> betaDist(alpha, beta);
 						double randFromUnif = unifDist(generator);
 						
@@ -942,10 +919,13 @@ int main() {
 					}
 					
 				}
-				//cout << "line 927" << endl;
+
+
 				sfi = sfi - (sfe - sfg) / Nsteps; // reduce the inertial weight after each step
 				sfs = sfs + (sfe - sfg) / Nsteps; // increase social weight after each step
 
+
+				// CHECK IF NEW GLOBAL BEST HAS BEEN FOUND
 				int neflag = 0;
 				int lastrow = GBMAT.rows() - 1;
 				
@@ -958,6 +938,8 @@ int main() {
 				if (GBMAT(lastrow, Npars) != cost_gbest) {
 					neflag = 1;
 				}
+
+				//IF NEW GLOBAL BEST HAS BEEN FOUND, THEN UPDATE GBMAT
 				if (neflag == 1) {
 					cout << "line 943" << endl;
 					GBMAT.conservativeResize(GBMAT.rows() + 1, GBMAT.cols()); //rbind method currently.... where cbind is the "column bind vector"
@@ -986,8 +968,9 @@ int main() {
 				VectorXd mxt(3);
 				mxt = Q.colwise().mean();
 				cout << mxt << endl;
+
 				VectorXd myt(3);
-				myt = Q.colwise().mean();
+				myt = Y_t.colwise().mean();
 
 				MatrixXd residxt(Q.rows(), Q.cols());
 				residxt.col(0) = mxt.row(0).replicate(N, 1);
@@ -1025,9 +1008,12 @@ int main() {
 
 				MatrixXd g_mat(N, Nterms);
 				g_mat = Adiffs;
-				for (int m = 0; m < N; m++) { w_mat = w_mat + (g_mat.row(m).transpose()).transpose() * g_mat.row(m).transpose(); }
-				w_mat = w_mat / N;
-				w_mat = w_mat.inverse();
+				testMatrix.resize(g_mat.rows(), g_mat.cols());
+				testMatrix = g_mat;
+
+				w_mat.setZero();
+				for (int m = 0; m < N; m++) { w_mat = w_mat + (g_mat.row(m).transpose()) * g_mat.row(m); }
+				w_mat = (w_mat/N).inverse();
 			
 				if (useDiag == 1) { w_mat = w_mat.diagonal().diagonal(); }
 
@@ -1076,7 +1062,7 @@ int main() {
 					sum23 += (Q(n, 1) - pmp_2) * (Q(n, 2) - pmp_3);
 
 				}
-				N_SUBTRACT_ONE = Q.rows() - 1;
+				double N_SUBTRACT_ONE = Q.rows() - 1;
 
 				pcov_12 = sum12 / N_SUBTRACT_ONE;
 				pcov_13 = sum13 / N_SUBTRACT_ONE;
@@ -1096,7 +1082,7 @@ int main() {
 				all_terms << term_1, term_2, term_3, term_4, term_5, term_6, term_7, term_8, term_9;
 				term_vec = all_terms;
 
-				cost_seedk = term_vec.transpose() * w_mat * (term_vec.transpose()).transpose();
+				cost_gbest = term_vec.transpose() * w_mat * (term_vec.transpose()).transpose();
 
 				GBMAT.conservativeResize(GBMAT.rows() + 1, GBMAT.cols());
 				VectorXd cbind(gbest.size() + 1);
@@ -1130,10 +1116,10 @@ int main() {
 		
 
 	} // end loop over NIter simulations
-	
 	cout << "GBMAT: " << endl;
 	cout << GBMAT << endl;
 	cout << "CODE FINISHED RUNNING!" << endl;
+
 	return 0; // just to close the program at the end.
 }
 
