@@ -17,9 +17,6 @@ using namespace std;
 using namespace boost;
 using namespace boost::math;
 
-/*double uniformRandDouble(double range_from, double range_to); */
-
-
 int main() {
 	
 	auto t1 = std::chrono::high_resolution_clock::now();
@@ -222,7 +219,6 @@ int main() {
 			omp_3 = ompV(2);
 
 			/* variances - actually have to manually calculate it, no easy library  */
-
 			ovp_1 = (Y_t.col(0).array() - Y_t.col(0).array().mean()).square().sum() / ((double)Y_t.col(0).array().size() - 1);
 			ovp_2 = (Y_t.col(1).array() - Y_t.col(1).array().mean()).square().sum() / ((double)Y_t.col(1).array().size() - 1);
 			ovp_3 = (Y_t.col(2).array() - Y_t.col(2).array().mean()).square().sum() / ((double)Y_t.col(2).array().size() - 1);
@@ -930,7 +926,7 @@ int main() {
 				}
 				
 			}
-			// cout << "line 948"<<endl;
+
 			if (pso < (Biter + 1)) {
 				for (int init = 0; init < Npars; init++) { // best estimate of k to compute w.mat
 					k.at(init) = gbest(init);
